@@ -35,7 +35,6 @@ import Hint from "./Hint.vue";
 import EngineButton from "./EngineButton.vue";
 import Popup from "./Popup.vue";
 
-
 export default {
 	components: {
 		QuitButton,
@@ -64,7 +63,7 @@ export default {
 
 			isPopupShowed: false,
 			popupText: "Операция завершена упешно!",
-			popupType: "success"
+			popupType: "success",
 		};
 	},
 	mounted: function () {
@@ -74,28 +73,47 @@ export default {
 
 		this.lineConnectedToInputId.forEach((line, index) => this.resetLine(index + 1));
 	},
+	watch: {
+		lineConnectedToInputId: {
+			handler: function (value, oldValue) {
+				for(let i = 1; i < 4; i++) {
+					const light = this.machineSvg.getElementById(`light${i}`);
+					light?.classList.remove("light_active");
+				}
+
+				for(let i = 0; i < value.length; i++) {
+					const light = this.machineSvg.getElementById(`light${value[i]}`);
+					if(value[i] && value[i] + (i+1) == 4) {
+						light?.classList.add("light_active");
+						continue;
+					}
+				}
+			},
+			deep: true
+		},
+	},
 	methods: {
 		startDrag: function (e) {
 			let id = 0;
 			if (e.target.id.includes("output")) {
 				id = Number.parseInt(e.target.id.match(/\d+/g)[0]);
-			} else if(e.target.id.includes("input")) {
+			} else if (e.target.id.includes("input")) {
 				let inputId = Number.parseInt(e.target.id.match(/\d+/g)[0]);
 				this.lineConnectedToInputId.forEach((connectedInput, index) => {
-					if(inputId == connectedInput) {
+					if (inputId == connectedInput) {
 						id = index + 1;
 					}
 				});
 			} else return;
 
 			this.curLine = this.machineSvg.getElementById(`line${id}`);
-				this.curLineId = id;
+			this.curLineId = id;
 
-				this.lineConnectedToInputId[id - 1] = 0;
+			this.lineConnectedToInputId[id - 1] = 0;
 
-				this.machineSvg.onmouseover = this.tryToConnect;
-				document.onmousemove = this.handleDrag;
-				document.onmouseup = this.stopDrag;
+			this.machineSvg.onmouseover = this.tryToConnect;
+			document.onmousemove = this.handleDrag;
+			document.onmouseup = this.stopDrag;
 		},
 		handleDrag: function (e) {
 			this.moveEndPointAt(e.clientX, e.clientY);
@@ -132,8 +150,6 @@ export default {
 			line.setAttribute("y2", calibratedY);
 
 			this.lineConnectedToInputId[lineId - 1] = 0;
-			const light = this.machineSvg.getElementById(`light${4 - lineId}`);
-			light.classList.remove("light_active");
 		},
 		tryToConnect: function (e) {
 			if (e.target.id.includes("input")) {
@@ -147,15 +163,11 @@ export default {
 				this.moveEndPointAt(x, y);
 				this.lineConnectedToInputId[this.curLineId - 1] = inputId;
 
-				if (this.curLineId + inputId === 4) {
-					const light = this.machineSvg.getElementById(`light${4 - this.curLineId}`);
-					light.classList.add("light_active");	
-				}
 				this.resetCallbacks();
 			}
 		},
 		startEngine: function () {
-			if (this.lineConnectedToInputId.every((inputId, index) => inputId + (index+1) === 4)) {
+			if (this.lineConnectedToInputId.every((inputId, index) => inputId + (index + 1) === 4)) {
 				// TODO: ТУТ ЛОГИКА ОБРАБОТКИ
 
 				this.popupType = "success";
@@ -164,7 +176,7 @@ export default {
 				for (let i = 1; i <= 3; i++) {
 					this.resetLine(i);
 				}
-			} else if(this.lineConnectedToInputId.some(inputId => inputId === 0)) {
+			} else if (this.lineConnectedToInputId.some((inputId) => inputId === 0)) {
 				this.popupType = "error";
 				this.popupText = "Не все нити заправлены!";
 			} else {
