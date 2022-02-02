@@ -60,7 +60,7 @@ export default {
 			curLine: undefined,
 			curLineId: -1,
 
-			linesConnected: [false, false, false],
+			lineConnectedToInputId: [0, 0, 0],
 
 			isPopupShowed: false,
 			popupText: "Операция завершена упешно!",
@@ -72,22 +72,30 @@ export default {
 		this.machineSvgViewbox = this.machineSvg.viewBox.baseVal;
 		this.machineSvgRect = this.machineSvg.getBoundingClientRect();
 
-		this.linesConnected.forEach((line, index) => this.resetLine(index + 1));
+		this.lineConnectedToInputId.forEach((line, index) => this.resetLine(index + 1));
 	},
 	methods: {
 		startDrag: function (e) {
+			let id = 0;
 			if (e.target.id.includes("output")) {
-				const id = Number.parseInt(e.target.id.match(/\d+/g)[0]);
+				id = Number.parseInt(e.target.id.match(/\d+/g)[0]);
+			} else if(e.target.id.includes("input")) {
+				let inputId = Number.parseInt(e.target.id.match(/\d+/g)[0]);
+				this.lineConnectedToInputId.forEach((connectedInput, index) => {
+					if(inputId == connectedInput) {
+						id = index + 1;
+					}
+				});
+			} else return;
 
-				if (this.linesConnected[id - 1]) return;
-
-				this.curLine = this.machineSvg.getElementById(`line${id}`);
+			this.curLine = this.machineSvg.getElementById(`line${id}`);
 				this.curLineId = id;
+
+				this.lineConnectedToInputId[id - 1] = 0;
 
 				this.machineSvg.onmouseover = this.tryToConnect;
 				document.onmousemove = this.handleDrag;
 				document.onmouseup = this.stopDrag;
-			}
 		},
 		handleDrag: function (e) {
 			this.moveEndPointAt(e.clientX, e.clientY);
@@ -99,7 +107,7 @@ export default {
 			this.curLine.setAttribute("y2", calibratedY);
 		},
 		stopDrag: function () {
-			if (!this.linesConnected[this.curLineId - 1]) this.resetLine(this.curLineId);
+			if (!this.lineConnectedToInputId[this.curLineId - 1]) this.resetLine(this.curLineId);
 
 			this.resetCallbacks();
 		},
@@ -123,41 +131,45 @@ export default {
 			line.setAttribute("x2", calibratedX);
 			line.setAttribute("y2", calibratedY);
 
-			this.linesConnected[lineId - 1] = false;
+			this.lineConnectedToInputId[lineId - 1] = 0;
 			const light = this.machineSvg.getElementById(`light${4 - lineId}`);
 			light.classList.remove("light_active");
 		},
 		tryToConnect: function (e) {
 			if (e.target.id.includes("input")) {
-				const inputId = Number.parseInt(e.target.id.match(/\d+/g)[0]);
+				const input = e.target;
+				const inputId = Number.parseInt(input.id.match(/\d+/g)[0]);
+
+				const inputRect = input.getBoundingClientRect();
+				const x = inputRect.x + inputRect.width / 2;
+				const y = inputRect.y + inputRect.height / 2;
+
+				this.moveEndPointAt(x, y);
+				this.lineConnectedToInputId[this.curLineId - 1] = inputId;
+
 				if (this.curLineId + inputId === 4) {
-					const inputRect = e.target.getBoundingClientRect();
-					const x = inputRect.x + inputRect.width / 2;
-					const y = inputRect.y + inputRect.height / 2;
-
-					this.moveEndPointAt(x, y);
-
-					this.linesConnected[this.curLineId - 1] = true;
 					const light = this.machineSvg.getElementById(`light${4 - this.curLineId}`);
-					light.classList.add("light_active");
-
-					this.resetCallbacks();
+					light.classList.add("light_active");	
 				}
+				this.resetCallbacks();
 			}
 		},
 		startEngine: function () {
-			if (this.linesConnected.every((isLineConnected) => isLineConnected)) {
+			if (this.lineConnectedToInputId.every((inputId, index) => inputId + (index+1) === 4)) {
 				// TODO: ТУТ ЛОГИКА ОБРАБОТКИ
 
 				this.popupType = "success";
-				this.popupText = "Операция завершена успешно";
+				this.popupText = "Операция завершена успешно!";
 
 				for (let i = 1; i <= 3; i++) {
 					this.resetLine(i);
 				}
+			} else if(this.lineConnectedToInputId.some(inputId => inputId === 0)) {
+				this.popupType = "error";
+				this.popupText = "Не все нити заправлены!";
 			} else {
 				this.popupType = "error";
-				this.popupText = "Не все нити заправлены";
+				this.popupText = "Нити заправлены не правильно!";
 			}
 
 			this.isPopupShowed = true;
